@@ -173,6 +173,27 @@ GiphyAPI.prototype = {
     },
 
     /**
+     * Upload file
+     *
+     */
+    upload: function (options, callback) {
+      var reqOptions = {
+        hostname: 'upload.giphy.com',
+        method: 'POST',
+        api: (options ? options.api : null) || 'gifs'
+      };
+
+      if (typeof options === 'object' &&
+        Object.keys(options).length !== 0) {
+        reqOptions.query = options;
+      } else if (typeof options === 'function') {
+        callback = options;
+      }
+
+      return this._request(reqOptions, callback);
+    },
+
+    /**
     * Prepares the HTTP request and query string for the Giphy API
     *
     * @param options
@@ -183,6 +204,12 @@ GiphyAPI.prototype = {
     */
     _request: function(options, callback) {
         var endpoint = '';
+        var method = 'GET';
+
+        if(options.method) {
+          method = options.method;
+        }
+
         if (options.endpoint) {
             endpoint = '/' + options.endpoint;
         }
@@ -211,13 +238,18 @@ GiphyAPI.prototype = {
         }
 
         var requestOptions = {
-            hostname: API_HOSTNAME,
+            hostname: options.hostname ? options.hostname : API_HOSTNAME,
             path: API_BASE_PATH + options.api + endpoint + query,
-            withCredentials: !ENV_IS_BROWSER
+            method: method,
+            //withCredentials: !ENV_IS_BROWSER,
         };
 
+        if(method == 'POST') {
+          requestOptions.headers = 'application/x-www-form-urlencoded'
+        }
+
         var makeRequest = function(resolve, reject) {
-            http.get(requestOptions, function(response) {
+            var req = http.request(requestOptions, function(response) {
                 var body = '';
                 response.on('data', function(d) {
                     body += d;
@@ -228,9 +260,13 @@ GiphyAPI.prototype = {
                     }
                     resolve(body);
                 });
-            }).on('error', function(err) {
+            });
+
+            req.on('error', function(err) {
                 reject(err);
             });
+
+            req.end();
         };
 
         if (callback) {
